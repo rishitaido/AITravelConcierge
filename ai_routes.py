@@ -14,8 +14,14 @@ REQUEST_TIMEOUT = 90
 load_dotenv(override=True)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-MODEL = "mistralai/devstral-small-2505:free"
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL = "google/gemma-3-27b-it:free"
+# NOTE: many environments resolve the public host `openrouter.ai` but not
+# the `api.` subdomain. Use the main host path as the default and allow an
+# environment override via OPENROUTER_URL when needed (e.g. a proxy).
+OPENROUTER_URL = os.getenv(
+    "OPENROUTER_URL",
+    "https://openrouter.ai/api/v1/chat/completions"
+)
 HEADERS = {
     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
     "Content-Type": "application/json"
@@ -107,7 +113,12 @@ def call_openrouter(prompt: str, *, max_tokens: int = 1200, system_prompt: str =
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY is missing.")
     r = requests.post(OPENROUTER_URL, headers=HEADERS, json=payload, timeout=REQUEST_TIMEOUT)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.HTTPError as he:
+        # include response body for easier debugging
+        text = r.text if r is not None else ""
+        raise RuntimeError(f"HTTP {r.status_code} from OpenRouter: {text}") from he
     data = r.json()
     return data["choices"][0]["message"]["content"].strip()
 
@@ -153,6 +164,9 @@ def ai_endpoint(default_days: int | None = None):
                 prompt += f"\n\nReturn exactly {days} days."
 
             if cached := get_cached_response(prompt):
+                # cached may contain an error marker — return structured error
+                if isinstance(cached, str) and cached.startswith("[ERROR]"):
+                    return jsonify({"error": cached}), 502
                 return jsonify({"reply": cached})
 
             try:
@@ -171,6 +185,11 @@ def ai_endpoint(default_days: int | None = None):
                 reply = "[ERROR] AI request timed out"
             except Exception as e:
                 reply = f"[ERROR] {e}"
+
+            # If AI produced an error marker, return a structured error response
+            if isinstance(reply, str) and reply.startswith("[ERROR]"):
+                # Do not cache error responses
+                return jsonify({"error": reply}), 502
 
             save_response_to_cache(prompt, reply)
             return jsonify({"reply": reply})

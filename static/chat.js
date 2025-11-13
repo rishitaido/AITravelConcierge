@@ -84,7 +84,16 @@ const sendMessage = async (promptOverride = null) => {
 
     if (isJSON) {
       // ---------- JSON reply ----------
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
+      // Structured error from backend or non-2xx status
+      if (!res.ok || data.error) {
+        const errMsg = data.error || `[HTTP ${res.status}] ${res.statusText}`;
+        console.error("AI error:", errMsg);
+        aiDiv.textContent = `AI: ${errMsg}`;
+        return;
+      }
+
       try {
         const parsed = JSON.parse(data.reply);
         if (Array.isArray(parsed)) {

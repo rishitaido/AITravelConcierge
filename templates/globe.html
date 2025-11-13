@@ -13,7 +13,8 @@
   <script>
     window.MAPTILER_KEY = "{{ maptiler_key }}";
   </script>
-
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat-ui.css') }}" />
+  <script src="{{ url_for('static', filename='toast.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='maplibre.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='globe-tools.js') }}"></script>
 </head>
@@ -46,14 +47,18 @@
   <button id="ai-map-chat" class="floating-chat">💬</button>
 
   <!-- AI Chat Box -->
-  <div id="map-chat-box" class="chat-box hidden">
+  <div id="map-chat-box" class="chat-box hidden" aria-hidden="true">
     <div class="chat-box-header">
-      AI Assistant
-      <button onclick="document.getElementById('map-chat-box').classList.add('hidden')" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">&times;</button>
+      <span>AI Assistant</span>
+      <button id="map-chat-close" aria-label="Close chat" class="chat-close">&times;</button>
     </div>
-    <textarea id="map-chat-input" placeholder="Ask about an address..."></textarea>
-    <button id="map-chat-send">Send</button>
-    <div id="map-chat-response"></div>
+
+    <div id="map-chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
+
+    <div class="chat-input-row">
+      <textarea id="map-chat-input" placeholder="Ask about an address..." rows="1"></textarea>
+      <button id="map-chat-send" class="chat-send">Send</button>
+    </div>
   </div>
 
 </body>

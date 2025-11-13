@@ -80,8 +80,11 @@
     </main>
   </section>
 
+  <script src="{{ url_for('static', filename='toast.js') }}"></script>
   <script type="module">
-    import { renderJSONItinerary } from "{{ url_for('static', filename='itinerary-display.js') }}";
+
+  
+  import { renderJSONItinerary, renderTextItinerary } from "{{ url_for('static', filename='itinerary-display.js') }}";
 
     document.getElementById("build-btn").addEventListener("click", async (e) => {
       e.preventDefault();
@@ -95,7 +98,7 @@
       const traveler  = document.getElementById("traveler").value;
 
       if (!city || !days) {
-        alert("Please enter a city and number of days.");
+        window.showToast && showToast("Please enter a city and number of days.", 'warning');
         return;
       }
 
@@ -112,20 +115,63 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        const data = await res.json();
+        // Prefer checking HTTP status and structured errors first
+        const data = await res.json().catch(() => ({}));
 
+        if (!res.ok || data.error) {
+          const errMsg = data.error || `[HTTP ${res.status}] ${res.statusText}`;
+          console.error("AI itinerary error:", errMsg);
+          document.getElementById("viewer-output").innerHTML = `<pre class=\"message ai\" style=\"white-space:pre-wrap;padding:1rem;\">${errMsg}</pre>`;
+          window.showToast && showToast(`AI Error: ${errMsg}`, 'error');
+        } else {
         try {
-          const parsed = JSON.parse(data.reply);
+          // If the reply is already an object, use it directly.
+          let replyContent = data.reply;
+          if (typeof replyContent === 'string') replyContent = replyContent.trim();
+
+          // Helper: strip Markdown code fences (```json ... ``` or ``` ... ```)
+          const stripCodeFences = (s) => {
+            if (typeof s !== 'string') return s;
+            // Remove leading ```json or ``` markers and trailing ```
+            s = s.replace(/^```\s*json\s*/i, '');
+            s = s.replace(/^```\s*/i, '');
+            s = s.replace(/```\s*$/i, '');
+            return s.trim();
+          };
+
+          if (typeof replyContent === 'string') replyContent = stripCodeFences(replyContent);
+
+          let parsed;
+          if (typeof replyContent === 'object') {
+            parsed = replyContent;
+          } else {
+            parsed = JSON.parse(replyContent);
+          }
+
           renderJSONItinerary(parsed);
           localStorage.setItem("itineraryJSON", JSON.stringify(parsed));
           localStorage.setItem("itineraryTimestamp", Date.now().toString());
         } catch (err) {
+          // AI returned something that's not valid JSON. Handle gracefully:
           console.error("AI reply is not valid JSON:", err);
-          alert("Error: AI did not return a valid itinerary.");
+
+          const replyStr = String(data.reply || "");
+          // If the backend returned an error marker, surface it to the user.
+          if (replyStr.startsWith("[ERROR]")) {
+            // show error message in place and surface toast
+            document.getElementById("viewer-output").innerHTML = `<pre class="message ai" style="white-space:pre-wrap;padding:1rem;">${replyStr}</pre>`;
+            window.showToast && showToast(`AI Error: ${replyStr}`, 'error');
+          } else {
+            // Treat the reply as plain text itinerary (some models may return text instead of JSON)
+            renderTextItinerary(replyStr);
+            localStorage.setItem("itineraryText", replyStr);
+            localStorage.setItem("itineraryTimestamp", Date.now().toString());
+          }
         }
+      }
       } catch (err) {
-        console.error("Failed to fetch itinerary:", err);
-        alert("Error contacting AI.");
+  console.error("Failed to fetch itinerary:", err);
+  window.showToast && showToast("Error contacting AI.", 'error');
       } finally {
         document.getElementById("build-spinner").hidden = true;
       }

@@ -25,24 +25,44 @@ document.getElementById("quick-itinerary")?.addEventListener("click", async () =
       body   : JSON.stringify({ prompt: demoPrompt })
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.error) {
+      const errMsg = data.error || `[HTTP ${res.status}] ${res.statusText}`;
+      console.error("AI demo error:", errMsg);
+      window.showToast ? showToast(`AI Error: ${errMsg}`, 'error') : alert(`AI Error: ${errMsg}`);
+      return;
+    }
 
     try {
-      const parsed = JSON.parse(data.reply);
+      // Be resilient to code-fenced JSON (```json ... ```)
+      const stripCodeFences = (s) => {
+        if (typeof s !== 'string') return s;
+        s = s.trim();
+        s = s.replace(/^```\s*json\s*/i, '');
+        s = s.replace(/^```\s*/i, '');
+        s = s.replace(/```\s*$/i, '');
+        return s.trim();
+      };
+
+      let reply = data.reply;
+      if (typeof reply === 'string') reply = stripCodeFences(reply);
+
+      const parsed = typeof reply === 'object' ? reply : JSON.parse(reply);
       console.log("✅ Demo itinerary:", parsed);
 
       // Save to localStorage for /itinerary
       localStorage.setItem("itineraryJSON", JSON.stringify(parsed));
 
       // Optional: show quick notification:
-      alert(`Tokyo itinerary saved — ${parsed.length} days! Go to /itinerary to view.`);
+      window.showToast ? showToast(`Tokyo itinerary saved — ${parsed.length} days! Go to /itinerary to view.`, 'success') : alert(`Tokyo itinerary saved — ${parsed.length} days! Go to /itinerary to view.`);
     } catch (err) {
       console.error("AI reply is not JSON:", err);
-      alert("Error: AI did not return a valid itinerary.");
+      window.showToast ? showToast("Error: AI did not return a valid itinerary.", 'warning') : alert("Error: AI did not return a valid itinerary.");
     }
   } catch (err) {
-    console.error(err);
-    alert(`Couldn’t fetch demo itinerary — ${err.message}`);
+  console.error(err);
+  window.showToast ? showToast(`Couldn't fetch demo itinerary — ${err.message}`, 'error') : alert(`Couldn’t fetch demo itinerary — ${err.message}`);
   }
 });
 
@@ -54,8 +74,8 @@ document
   });
 
 // ----------- “Visualize Flight Path” button — future -----------------
-document
+  document
   .getElementById("show-flight")
   ?.addEventListener("click", () => {
-    alert("Coming soon: Flight path visualization!");
+    window.showToast ? showToast("Coming soon: Flight path visualization!", 'info') : alert("Coming soon: Flight path visualization!");
   });

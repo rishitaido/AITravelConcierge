@@ -821,60 +821,9 @@ details summary::after {
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* AI Chat Box */
-.chat-box {
-  position: fixed;
-  bottom: 100px;
-  right: 1.5rem;
-  width: 320px;
-  background: rgba(255,255,255,0.97);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
+/* Legacy AI Chat Box rules removed — globe chat uses #map-chat-box and chat-ui.css
+   to avoid conflicting styles. Keep this placeholder so other selectors stay valid. */
 
-.chat-box.hidden {
-  display: none;
-}
-
-.chat-box-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-
-#map-chat-input {
-  width: 100%;
-  height: 60px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  padding: 0.6rem;
-  font-size: 0.95rem;
-}
-
-#map-chat-send {
-  width: 100%;
-  padding: 0.7rem;
-  border-radius: 8px;
-  border: none;
-  background: var(--accent);
-  color: #000000;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-#map-chat-response {
-  min-height: 1.5rem;
-  font-size: 0.9rem;
-  color: #333;
-}
 
 /* Optional: Hover effects for map buttons */
 .btn-dark:hover {
