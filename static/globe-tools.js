@@ -40,7 +40,7 @@ function renderStickyItinerary() {
       const itinerary = JSON.parse(savedJSON);
       // Use the shared renderer to keep the UI consistent with /itinerary
       renderJSONItinerary(itinerary, container);
-      console.log(`✅ Sticky Itinerary Loaded (${Array.isArray(itinerary) ? itinerary.length : (itinerary.days||[]).length} days)`);
+      console.log(`✅ Sticky Itinerary Loaded (${Array.isArray(itinerary) ? itinerary.length : (itinerary.days || []).length} days)`);
       return;
     } catch (err) {
       console.warn("⚠️ Invalid itineraryJSON:", err);
@@ -78,10 +78,14 @@ function appendMessage(text, role = 'ai') {
   if (!container) return;
   const bubble = document.createElement('div');
   bubble.className = `chat-bubble ${role}`;
-  // Render text safely using textContent to avoid injecting HTML
+  // Render text safely using marked if available, else textContent
   const content = document.createElement('div');
   content.className = 'bubble-content';
-  content.textContent = String(text);
+  if (typeof marked !== 'undefined' && role !== 'user') {
+    content.innerHTML = marked.parse(String(text));
+  } else {
+    content.textContent = String(text);
+  }
   bubble.appendChild(content);
   container.appendChild(bubble);
   // scroll into view
@@ -118,13 +122,17 @@ async function sendMapChat() {
   // Show typing indicator
   setTypingIndicator(true);
 
-  const prompt = `You are an assistant that helps users find addresses or info about trip places. Answer concisely: "${input}"`;
+  // Simplified prompt - let the system prompt handle the persona
+  const prompt = input;
 
   try {
     const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({
+        prompt,
+        history: [] // Explicitly send empty history for map chat
+      })
     });
 
     setTypingIndicator(false);

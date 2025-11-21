@@ -20,9 +20,9 @@ document.getElementById("quick-itinerary")?.addEventListener("click", async () =
 
   try {
     const res = await fetch("/api/ask", {
-      method : "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body   : JSON.stringify({ prompt: demoPrompt })
+      body: JSON.stringify({ prompt: demoPrompt })
     });
 
     const data = await res.json().catch(() => ({}));
@@ -61,8 +61,8 @@ document.getElementById("quick-itinerary")?.addEventListener("click", async () =
       window.showToast ? showToast("Error: AI did not return a valid itinerary.", 'warning') : alert("Error: AI did not return a valid itinerary.");
     }
   } catch (err) {
-  console.error(err);
-  window.showToast ? showToast(`Couldn't fetch demo itinerary — ${err.message}`, 'error') : alert(`Couldn’t fetch demo itinerary — ${err.message}`);
+    console.error(err);
+    window.showToast ? showToast(`Couldn't fetch demo itinerary — ${err.message}`, 'error') : alert(`Couldn’t fetch demo itinerary — ${err.message}`);
   }
 });
 
@@ -70,11 +70,11 @@ document.getElementById("quick-itinerary")?.addEventListener("click", async () =
 document
   .getElementById("show-airport")
   ?.addEventListener("click", () => {
-    window.location.href = "/airports";
+    window.location.href = "/globe";
   });
 
 // ----------- “Visualize Flight Path” button — future -----------------
-  document
+document
   .getElementById("show-flight")
   ?.addEventListener("click", () => {
     window.showToast ? showToast("Coming soon: Flight path visualization!", 'info') : alert("Coming soon: Flight path visualization!");

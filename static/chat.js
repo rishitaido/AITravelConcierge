@@ -7,7 +7,7 @@
 //--------------------------------------------------------------
 // Config
 //--------------------------------------------------------------
-const API_CHAT     = "/api/ask";
+const API_CHAT = "/api/ask";
 const API_GREETING = null;               // set to "/api/greeting" if you add one
 
 import { renderJSONItinerary } from "./itinerary-display.js";
@@ -34,8 +34,8 @@ if (greetEl) {
 // DOM helpers
 //--------------------------------------------------------------
 const chatWrap = document.getElementById("chat-container");
-const inputEl  = document.getElementById("chat-input");
-const sendBtn  = document.getElementById("send-button");
+const inputEl = document.getElementById("chat-input");
+const sendBtn = document.getElementById("send-button");
 const quickBtn = document.getElementById("quick-itinerary");
 
 const addMsg = (role, text = "") => {
@@ -57,6 +57,12 @@ const saveItinerary = (replyText) => {
 };
 
 //--------------------------------------------------------------
+// State
+//--------------------------------------------------------------
+let conversationHistory = [];
+const MAX_HISTORY = 10;
+
+//--------------------------------------------------------------
 // Main send logic (plain chat or optional override)
 //--------------------------------------------------------------
 const sendMessage = async (promptOverride = null) => {
@@ -71,16 +77,24 @@ const sendMessage = async (promptOverride = null) => {
   }
 
   const aiDiv = addMsg("ai", "…");
+  // Remove "AI: " prefix logic from addMsg if we want pure markdown, 
+  // or handle it carefully. For now, let's keep addMsg simple and override innerHTML here.
+  aiDiv.innerHTML = "<em>Thinking...</em>";
   sendBtn.disabled = true;
 
   try {
     const res = await fetch(API_CHAT, {
-      method : "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body   : JSON.stringify({ prompt: userPrompt })
+      body: JSON.stringify({
+        prompt: userPrompt,
+        history: conversationHistory
+      })
     });
 
     const isJSON = res.headers.get("content-type")?.includes("application/json");
+
+    let replyText = "";
 
     if (isJSON) {
       // ---------- JSON reply ----------
@@ -100,27 +114,44 @@ const sendMessage = async (promptOverride = null) => {
           renderJSONItinerary(parsed, aiDiv);
           localStorage.setItem("itineraryJSON", JSON.stringify(parsed));
           saveItinerary(data.reply);   // ✅ ONLY save if parsed array!
-          return;
+
+          // For itinerary, we might not want to add to history as it's a complex object,
+          // but the user prompt was added. Let's add a summary or just the text.
+          replyText = data.reply;
         }
       } catch (err) {
         console.log("AI reply is not JSON — fallback to plain text.");
       }
 
-      // Fallback — plain text
-      aiDiv.textContent = `AI: ${data.reply}`;
+      if (!replyText) {
+        // Fallback — plain text
+        replyText = data.reply;
+        aiDiv.innerHTML = marked.parse(replyText);
+      }
 
     } else {
       // ---------- Streaming fallback ----------
-      const reader  = res.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer    = "";
+      let buffer = "";
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        aiDiv.textContent = `AI: ${buffer}`;
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        aiDiv.innerHTML = marked.parse(buffer);
         chatWrap.scrollTop = chatWrap.scrollHeight;
       }
+      replyText = buffer;
+    }
+
+    // Update history
+    conversationHistory.push({ role: "user", content: userPrompt });
+    conversationHistory.push({ role: "assistant", content: replyText });
+
+    // Prune history
+    if (conversationHistory.length > MAX_HISTORY * 2) {
+      conversationHistory = conversationHistory.slice(-MAX_HISTORY * 2);
     }
 
   } catch (err) {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,6 +16,7 @@
   </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='chat-ui.css') }}" />
   <script src="{{ url_for('static', filename='toast.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script type="module" src="{{ url_for('static', filename='maplibre.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='globe-tools.js') }}"></script>
 </head>
@@ -29,7 +31,7 @@
     <button id="toggle-restaurants" class="btn-dark">Show Restaurants</button>
     <button id="toggle-attractions" class="btn-dark">Show Attractions</button>
     <input id="globe-search" placeholder="Search IATA / city"
-           style="width: 220px; padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid #ccc;" />
+      style="width: 220px; padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid #ccc;" />
   </header>
 
   <!-- Map -->
@@ -62,4 +64,5 @@
   </div>
 
 </body>
+
 </html>

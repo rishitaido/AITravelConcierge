@@ -14,7 +14,7 @@ REQUEST_TIMEOUT = 90
 load_dotenv(override=True)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-MODEL = "google/gemma-3-27b-it:free"
+MODEL = "mistralai/mistral-small-3.2-24b-instruct:free"
 # NOTE: many environments resolve the public host `openrouter.ai` but not
 # the `api.` subdomain. Use the main host path as the default and allow an
 # environment override via OPENROUTER_URL when needed (e.g. a proxy).
@@ -80,33 +80,41 @@ Return ONLY valid JSON, exactly as shown. Do NOT include lists, tables, or extra
 SYSTEM_INSTR_CHAT = """
 You are TripMate, a friendly AI travel assistant for airplanes.life.
 
-Your role:
-✅ Answer travel-related questions clearly
-✅ Provide airline, airport, baggage, lounge, visa, and destination information
-✅ Give tips on packing, currency exchange, safety, and local etiquette
-✅ Recommend activities, restaurants, and cultural experiences
-✅ Assist with common air travel issues (delays, rebooking, etc)
+Your goal is to be helpful, direct, and fun.
 
-Response rules:
-- Use clear and natural language
-- Do NOT use JSON unless the user specifically asks for it
-- No unnecessary headings or lists unless helpful
-- No markdown unless asked
-- Keep responses concise but informative
-- Be professional, polite, and helpful
-- If a question is unclear, ask politely for clarification
+CRITICAL INSTRUCTION:
+When a user mentions a destination (e.g., "I want to go to Paris"), you MUST provide **specific recommendations immediately**.
+- Suggest 3-4 top things to do or see.
+- Suggest 1-2 local foods to try.
+- Do **NOT** ask a list of clarifying questions (budget, dates, who with, etc.).
+- Do **NOT** say "To help me give you the best recommendations...".
+- Just give the recommendations!
 
-Tone: Friendly, helpful, professional
-Audience: Travelers (novice and experienced), planning or in transit
+If the user gives NO destination, only THEN can you ask where they are going.
+
+Style:
+- Be conversational and enthusiastic.
+- Use bolding for place names.
+- Use bullet points for lists.
+- Keep it under 200 words.
+- Use Markdown formatting to make your response easy to read.
+
+IMPORTANT:
+- You are part of a continuous conversation.
+- Remember previous details the user shared.
+- If the user refers to "it" or "there", use the context from previous messages to understand.
 """
 
-def call_openrouter(prompt: str, *, max_tokens: int = 1200, system_prompt: str = SYSTEM_INSTR_CHAT) -> str:
-    payload = {
-        "model": MODEL,
-        "messages": [
+def call_openrouter(prompt: str | None = None, *, messages: list | None = None, max_tokens: int = 1200, system_prompt: str = SYSTEM_INSTR_CHAT) -> str:
+    if messages is None:
+        messages = [
             { "role": "system", "content": system_prompt.strip() },
             { "role": "user",   "content": prompt.strip() }
-        ],
+        ]
+    
+    payload = {
+        "model": MODEL,
+        "messages": messages,
         "max_tokens": max_tokens,
         "temperature": 0.7
     }
@@ -127,6 +135,11 @@ def ai_endpoint(default_days: int | None = None):
         @functools.wraps(fn)
         def wrapper():
             data = request.get_json(force=True, silent=True) or {}
+
+            # Extract history if available
+            history = data.get("history", [])
+            if not isinstance(history, list):
+                history = []
 
             prompt_data = data.get("prompt")
             if isinstance(prompt_data, dict):
@@ -150,6 +163,8 @@ def ai_endpoint(default_days: int | None = None):
 
             if not prompt:
                 return jsonify({"error": "Prompt is required"}), 400
+            
+            # Check length of NEW prompt only
             if len(prompt) > MAX_PROMPT_LEN:
                 return jsonify({"error": f'Prompt too long (max {MAX_PROMPT_LEN} chars)'}), 413
 
@@ -175,10 +190,28 @@ def ai_endpoint(default_days: int | None = None):
 
                 if fn.__name__ == "api_itinerary":
                     system_prompt = SYSTEM_INSTR_ITINERARY
+                    # Itinerary usually doesn't use history in this specific implementation, 
+                    # but if we wanted to, we could. For now, keep it simple.
+                    reply = call_openrouter(prompt, max_tokens=dynamic_max, system_prompt=system_prompt)
                 else:
                     system_prompt = SYSTEM_INSTR_CHAT
-
-                reply = call_openrouter(prompt, max_tokens=dynamic_max, system_prompt=system_prompt)
+                    # Construct full message history
+                    # 1. System prompt
+                    messages = [{ "role": "system", "content": system_prompt.strip() }]
+                    
+                    # 2. History (limit to last 10 to be safe, though frontend should also limit)
+                    # Validate history items
+                    valid_history = []
+                    for h in history:
+                        if isinstance(h, dict) and "role" in h and "content" in h:
+                            valid_history.append(h)
+                    
+                    messages.extend(valid_history[-10:])
+                    
+                    # 3. Current user prompt
+                    messages.append({ "role": "user", "content": prompt })
+                    
+                    reply = call_openrouter(messages=messages, max_tokens=dynamic_max)
                 if not reply:
                     raise RuntimeError("Empty response from AI")
             except requests.Timeout:
