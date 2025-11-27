@@ -14,7 +14,7 @@ REQUEST_TIMEOUT = 90
 load_dotenv(override=True)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-MODEL = "mistralai/mistral-small-3.2-24b-instruct:free"
+MODEL = "tngtech/tng-r1t-chimera:free"
 # NOTE: many environments resolve the public host `openrouter.ai` but not
 # the `api.` subdomain. Use the main host path as the default and allow an
 # environment override via OPENROUTER_URL when needed (e.g. a proxy).
