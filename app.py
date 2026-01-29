@@ -5,6 +5,40 @@ import os
 from prometheus_client import Counter, Histogram, generate_latest
 import time 
 from limiter_config import limiter
+import logging
+import sys
+from pythonjsonlogger import jsonlogger
+
+
+# Configure structured JSON logging
+class CustomJsonFormatter(jsonlogger.JsonFormatter):
+    def add_fields(self, log_record, record, message_dict):
+        super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
+        log_record['timestamp'] = record.created
+        log_record['level'] = record.levelname
+        log_record['logger'] = record.name
+        # Add request context if available
+        from flask import has_request_context
+        if has_request_context():
+            log_record['endpoint'] = request.path
+            log_record['method'] = request.method
+            log_record['remote_addr'] = request.remote_addr
+
+# Set up JSON logging to stdout
+logHandler = logging.StreamHandler(sys.stdout)
+formatter = CustomJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
+logHandler.setFormatter(formatter)
+
+# Configure Flask app logger
+logger = logging.getLogger()
+logger.addHandler(logHandler)
+logger.setLevel(logging.INFO)
+
+# Also configure werkzeug (Flask's underlying WSGI server) logger
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.setLevel(logging.INFO)
+werkzeug_logger.addHandler(logHandler)
+
 
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
@@ -26,13 +60,41 @@ def before_request():
 def after_request(response):
     REQUEST_COUNT.labels(request.method, request.path).inc()
     start = getattr(request, "start_time", time.time())
-    REQUEST_LATENCY.labels(request.path).observe(time.time() - start)
+    latency = time.time() - start
+    REQUEST_LATENCY.labels(request.path).observe(latency)
+    
+    # Log request with structured data
+    logger.info(
+        "Request completed",
+        extra={
+            "method": request.method,
+            "endpoint": request.path,
+            "status_code": response.status_code,
+            "latency_seconds": latency,
+            "remote_addr": request.remote_addr
+        }
+    )
+    
     return response
 
 # 3) Expose the /metrics endpoint
 @app.route('/metrics')
 def metrics():
     return generate_latest(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+# 4) Health and readiness probes for Kubernetes
+@app.route('/healthz')
+def healthz():
+    """Liveness probe - returns 200 if the app is running"""
+    return jsonify({"status": "healthy"}), 200
+
+@app.route('/readyz')
+def readyz():
+    """Readiness probe - returns 200 if the app is ready to serve traffic"""
+    # In a more complex app, you might check database connections, etc.
+    # For now, if the server is up, we're ready
+    return jsonify({"status": "ready"}), 200
+
 
 
 SWAGGER_URL = '/docs'
@@ -71,5 +133,5 @@ def destinations():
     return render_template("destinations.html")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)
     

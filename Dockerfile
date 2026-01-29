@@ -60,7 +60,7 @@ RUN chown -R appuser:appgroup /app
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Expose your Flask port
-EXPOSE 5000
+EXPOSE 8080
 
 # Switch to non-root
 USER appuser

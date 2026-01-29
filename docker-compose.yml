@@ -1,4 +1,3 @@
-
 networks:
   appnet:
     driver: bridge
@@ -6,6 +5,7 @@ networks:
 volumes:
   loki-data:
   promtail-data:
+
 
 services:
   python-app:
@@ -20,7 +20,7 @@ services:
     env_file:
       - .env
     ports:
-      - "5000:5000"      # Flask default port
+      - "8080:8080" # Platform standard port
     networks:
       - appnet
     # Ensure app logs to stdout/stderr for Docker logging
@@ -48,7 +48,7 @@ services:
     container_name: grafana
     restart: unless-stopped
     env_file:
-      - .env                    # so you can set GRAFANA_PASSWORD in .env
+      - .env # so you can set GRAFANA_PASSWORD in .env
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     ports:
