@@ -18,3 +18,14 @@ __pycache__/
 # Cache
 cache.db
 *.db
+
+# Secrets and certificates
+*.pem
+*.key
+*.crt
+**/secret.yaml
+!**/secret-template.yaml
+
+# Runtime data
+data/wal/
+scratch/

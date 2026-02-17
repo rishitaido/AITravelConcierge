@@ -42,6 +42,7 @@ werkzeug_logger.addHandler(logHandler)
 
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(32).hex())
 
 limiter.init_app(app)  # Apply rate limits to this blueprint
 app.register_blueprint(ai_routes)
@@ -74,6 +75,13 @@ def after_request(response):
             "remote_addr": request.remote_addr
         }
     )
+    
+    # Security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'geolocation=(), camera=(), microphone=()'
     
     return response
 
@@ -110,7 +118,7 @@ app.register_blueprint(swaggerui_bp, url_prefix=SWAGGER_URL)
 # Serve the spec file itself
 @app.route('/openapi.yaml')
 def openapi_spec():
-    return send_from_directory(os.getcwd(), 'openapi.yaml')
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'openapi.yaml')
 
 @app.route("/")
 def index():
@@ -133,5 +141,5 @@ def destinations():
     return render_template("destinations.html")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")
     

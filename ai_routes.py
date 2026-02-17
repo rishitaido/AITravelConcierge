@@ -3,10 +3,13 @@
 
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
-import os, requests, functools
+import os, requests, functools, logging
 
 from cache import init_cache_db, get_cached_response, save_response_to_cache
 from limiter_config import limiter
+
+logger = logging.getLogger(__name__)
+
 
 MAX_PROMPT_LEN = 1000
 REQUEST_TIMEOUT = 90
@@ -217,7 +220,8 @@ def ai_endpoint(default_days: int | None = None):
             except requests.Timeout:
                 reply = "[ERROR] AI request timed out"
             except Exception as e:
-                reply = f"[ERROR] {e}"
+                logger.error(f"AI request failed: {e}", exc_info=True)
+                reply = "[ERROR] AI service temporarily unavailable"
 
             # If AI produced an error marker, return a structured error response
             if isinstance(reply, str) and reply.startswith("[ERROR]"):

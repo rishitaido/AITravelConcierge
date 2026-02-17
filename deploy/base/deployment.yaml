@@ -16,6 +16,10 @@ spec:
         app: airports-ai
         tier: backend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
       - name: app
         image: airports-ai:latest
@@ -24,6 +28,11 @@ spec:
         - containerPort: 8080
           name: http
           protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
@@ -65,3 +74,4 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+

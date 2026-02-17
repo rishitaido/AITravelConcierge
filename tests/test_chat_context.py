@@ -2,7 +2,7 @@ import requests
 import json
 import sys
 
-BASE_URL = "http://localhost:5001/api/ask"
+BASE_URL = "http://localhost:8080/api/ask"
 
 def test_chat_context():
     print("Testing chat context...")

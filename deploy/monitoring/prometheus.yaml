@@ -1,0 +1,159 @@
+# Prometheus stack: Namespace + ConfigMap (config + alerts) + Deployment + Service
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    # Alerting configuration
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: []
+    
+    # Load rules once and periodically evaluate them
+    rule_files:
+      - /etc/prometheus/alerts.yml
+    
+    # Scrape configurations
+    scrape_configs:
+      # Scrape Prometheus itself
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+      
+      # Scrape our app using Kubernetes service discovery
+      - job_name: 'airports-ai'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - default
+        relabel_configs:
+          # Only scrape pods with app=airports-ai label
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: airports-ai
+          # Use pod name as instance label
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: instance
+          # Add namespace label
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: kubernetes_namespace
+  
+  alerts.yml: |
+    groups:
+      - name: airports-ai-alerts
+        interval: 30s
+        rules:
+          # Alert if error rate > 5% for 5 minutes
+          - alert: HighErrorRate
+            expr: |
+              (
+                sum(rate(request_count{status_code=~"5.."}[5m]))
+                /
+                sum(rate(request_count[5m]))
+              ) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High error rate detected"
+              description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          
+          # Alert if p95 latency > 1 second for 5 minutes
+          - alert: HighLatency
+            expr: |
+              histogram_quantile(0.95, 
+                sum(rate(request_latency_seconds_bucket[5m])) by (le, endpoint)
+              ) > 1.0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High latency detected on {{ $labels.endpoint }}"
+              description: "P95 latency is {{ $value }}s (threshold: 1s)"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+          - '--web.console.templates=/usr/share/prometheus/consoles'
+        ports:
+        - containerPort: 9090
+          name: web
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus
+        - name: prometheus-storage
+          mountPath: /prometheus
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prometheus-storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  selector:
+    app: prometheus

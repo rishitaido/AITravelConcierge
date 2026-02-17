@@ -9,8 +9,27 @@ resources:
 commonLabels:
   environment: dev
 
-patchesStrategicMerge:
-  - deployment-patch.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: airports-ai
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: airports-ai
+      spec:
+        template:
+          spec:
+            containers:
+            - name: app
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
 
 replicas:
   - name: airports-ai

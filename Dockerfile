@@ -3,7 +3,7 @@
 ############################################
 #  Base image (common to builder & final) #
 ############################################
-FROM python:3.11-slim AS base
+FROM python:3.11.11-slim AS base
 
 # Set a working directory
 WORKDIR /app
@@ -20,13 +20,13 @@ FROM base AS builder
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-      build-essential \
-      gcc \
-      libpq-dev \
-      python3-dev \
-      libffi-dev \
-      libssl-dev \
-      git && \
+    build-essential \
+    gcc \
+    libpq-dev \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    git && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements for better layer caching
