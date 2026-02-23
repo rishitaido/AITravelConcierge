@@ -1,4 +1,4 @@
-Flask==3.1.1
+Flask==3.1.3
 Flask-Limiter==3.12          # provides flask_limiter and .util.get_remote_address
 flask-swagger-ui==5.21.0      # provides flask_swagger_ui
 requests==2.32.4
