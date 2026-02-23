@@ -12,7 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 MAX_PROMPT_LEN = 1000
+MAX_FIELD_LEN = 200
 REQUEST_TIMEOUT = 90
+ALLOWED_ROLES = {"user", "assistant"}
+
+
+def _strip_control(s: str) -> str:
+    """Remove non-printable control characters (except newline/tab)."""
+    return ''.join(c for c in s if c in ('\n', '\t') or (c.isprintable()))
 
 load_dotenv(override=True)
 
@@ -127,9 +134,10 @@ def call_openrouter(prompt: str | None = None, *, messages: list | None = None, 
     try:
         r.raise_for_status()
     except requests.HTTPError as he:
-        # include response body for easier debugging
+        # Log full details server-side but do NOT expose to client
         text = r.text if r is not None else ""
-        raise RuntimeError(f"HTTP {r.status_code} from OpenRouter: {text}") from he
+        logger.error("OpenRouter HTTP %s: %s", r.status_code, text[:500])
+        raise RuntimeError(f"AI provider returned HTTP {r.status_code}") from he
     data = r.json()
     return data["choices"][0]["message"]["content"].strip()
 
@@ -146,13 +154,13 @@ def ai_endpoint(default_days: int | None = None):
 
             prompt_data = data.get("prompt")
             if isinstance(prompt_data, dict):
-                city = prompt_data.get("city", "").strip()
+                city = _strip_control(prompt_data.get("city", "").strip())[:MAX_FIELD_LEN]
                 days_field = prompt_data.get("days", "")
-                theme = prompt_data.get("theme", "").strip()
-                region = prompt_data.get("region", "").strip()
-                budget = prompt_data.get("budget", "").strip()
-                pace = prompt_data.get("pace", "").strip()
-                traveler = prompt_data.get("traveler", "").strip()
+                theme = _strip_control(prompt_data.get("theme", "").strip())[:MAX_FIELD_LEN]
+                region = _strip_control(prompt_data.get("region", "").strip())[:MAX_FIELD_LEN]
+                budget = _strip_control(prompt_data.get("budget", "").strip())[:MAX_FIELD_LEN]
+                pace = _strip_control(prompt_data.get("pace", "").strip())[:MAX_FIELD_LEN]
+                traveler = _strip_control(prompt_data.get("traveler", "").strip())[:MAX_FIELD_LEN]
 
                 prompt = f"""Plan a {days_field}-day trip to {city}.
                 Theme: {theme}.
@@ -206,8 +214,9 @@ def ai_endpoint(default_days: int | None = None):
                     # Validate history items
                     valid_history = []
                     for h in history:
-                        if isinstance(h, dict) and "role" in h and "content" in h:
-                            valid_history.append(h)
+                        if isinstance(h, dict) and h.get("role") in ALLOWED_ROLES and "content" in h:
+                            content = str(h["content"])[:MAX_PROMPT_LEN]
+                            valid_history.append({"role": h["role"], "content": content})
                     
                     messages.extend(valid_history[-10:])
                     

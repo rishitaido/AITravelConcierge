@@ -1,5 +1,6 @@
 // globe-tools.js — sticky itinerary + AI place lookup chat
 import { renderJSONItinerary, renderTextItinerary } from './itinerary-display.js';
+import { sanitizeHTML } from './sanitize.js';
 console.log("🟢 globe-tools.js loaded");
 
 // Inject CSS at runtime to ensure fresh styles are applied even if the
@@ -82,7 +83,7 @@ function appendMessage(text, role = 'ai') {
   const content = document.createElement('div');
   content.className = 'bubble-content';
   if (typeof marked !== 'undefined' && role !== 'user') {
-    content.innerHTML = marked.parse(String(text));
+    content.innerHTML = sanitizeHTML(marked.parse(String(text)));
   } else {
     content.textContent = String(text);
   }

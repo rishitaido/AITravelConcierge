@@ -4,6 +4,17 @@
 // Auto-detects JSON vs Text from localStorage
 // ===================================================
 
+/** Escape HTML entities to prevent XSS from LLM-generated itinerary fields */
+function esc(str) {
+  if (typeof str !== 'string') return String(str ?? '');
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function renderJSONItinerary(itineraryInput, target = "#viewer-output") {
   const container =
     typeof target === "string" ? document.querySelector(target) : target;
@@ -24,15 +35,15 @@ export function renderJSONItinerary(itineraryInput, target = "#viewer-output") {
 
   days.forEach(day => {
     const html = `
-      <p><strong>Morning:</strong> ${day.morning}</p>
-      <p><strong>Afternoon:</strong> ${day.afternoon}</p>
-      <p><strong>Evening:</strong> ${day.evening}</p>
-      ${day.estimated_cost ? `<p><strong>Estimated Cost:</strong> ${day.estimated_cost}</p>` : ""}
+      <p><strong>Morning:</strong> ${esc(day.morning)}</p>
+      <p><strong>Afternoon:</strong> ${esc(day.afternoon)}</p>
+      <p><strong>Evening:</strong> ${esc(day.evening)}</p>
+      ${day.estimated_cost ? `<p><strong>Estimated Cost:</strong> ${esc(day.estimated_cost)}</p>` : ""}
     `;
 
     const block = document.createElement("details");
     block.innerHTML = `
-      <summary>Day ${day.day}</summary>
+      <summary>Day ${esc(day.day)}</summary>
       <div style="margin-top: .5rem;">${html}</div>
     `;
 

@@ -11,6 +11,7 @@ const API_CHAT = "/api/ask";
 const API_GREETING = null;               // set to "/api/greeting" if you add one
 
 import { renderJSONItinerary } from "./itinerary-display.js";
+import { sanitizeHTML } from "./sanitize.js";
 
 //--------------------------------------------------------------
 // Greeting banner
@@ -126,7 +127,7 @@ const sendMessage = async (promptOverride = null) => {
       if (!replyText) {
         // Fallback — plain text
         replyText = data.reply;
-        aiDiv.innerHTML = marked.parse(replyText);
+        aiDiv.innerHTML = sanitizeHTML(marked.parse(replyText));
       }
 
     } else {
@@ -139,7 +140,7 @@ const sendMessage = async (promptOverride = null) => {
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
-        aiDiv.innerHTML = marked.parse(buffer);
+        aiDiv.innerHTML = sanitizeHTML(marked.parse(buffer));
         chatWrap.scrollTop = chatWrap.scrollHeight;
       }
       replyText = buffer;
