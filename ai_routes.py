@@ -3,7 +3,10 @@
 
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
-import os, requests, functools, logging
+import os
+import requests
+import functools
+import logging
 
 from cache import init_cache_db, get_cached_response, save_response_to_cache
 from limiter_config import limiter
@@ -20,6 +23,7 @@ ALLOWED_ROLES = {"user", "assistant"}
 def _strip_control(s: str) -> str:
     """Remove non-printable control characters (except newline/tab)."""
     return ''.join(c for c in s if c in ('\n', '\t') or (c.isprintable()))
+
 
 load_dotenv(override=True)
 
@@ -72,14 +76,14 @@ You will receive:
 
 IMPORTANT:
 
-✅ If it is the **first day**, start with arrival and suggest good first activities after flight (taking into account morning or afternoon arrival).  
-✅ If it is the **last day**, include suggestions for morning and safe timing for afternoon flights.  
-✅ For each time block (morning / afternoon / evening), write full sentences — NOT just lists or short lines.  
-✅ Mention local food, drinks, music, markets, events.  
-✅ Pacing should match the "Travel pace" and "Traveler type" — families with kids = lighter, Solo or Couples = more flexible.  
-✅ Include realistic breaks, snacks, or "rest time" for balance.  
+✅ If it is the **first day**, start with arrival and suggest good first activities after flight (taking into account morning or afternoon arrival).
+✅ If it is the **last day**, include suggestions for morning and safe timing for afternoon flights.
+✅ For each time block (morning / afternoon / evening), write full sentences — NOT just lists or short lines.
+✅ Mention local food, drinks, music, markets, events.
+✅ Pacing should match the "Travel pace" and "Traveler type" — families with kids = lighter, Solo or Couples = more flexible.
+✅ Include realistic breaks, snacks, or "rest time" for balance.
 
-Tone: Friendly, human, helpful — write like a **good local tour guide**.  
+Tone: Friendly, human, helpful — write like a **good local tour guide**.
 
 Return ONLY valid JSON, exactly as shown. Do NOT include lists, tables, or extra explanations — just the JSON.
 
@@ -115,13 +119,14 @@ IMPORTANT:
 - If the user refers to "it" or "there", use the context from previous messages to understand.
 """
 
+
 def call_openrouter(prompt: str | None = None, *, messages: list | None = None, max_tokens: int = 1200, system_prompt: str = SYSTEM_INSTR_CHAT) -> str:
     if messages is None:
         messages = [
-            { "role": "system", "content": system_prompt.strip() },
-            { "role": "user",   "content": prompt.strip() }
+            {"role": "system", "content": system_prompt.strip()},
+            {"role": "user",   "content": prompt.strip()}
         ]
-    
+
     payload = {
         "model": MODEL,
         "messages": messages,
@@ -140,6 +145,7 @@ def call_openrouter(prompt: str | None = None, *, messages: list | None = None, 
         raise RuntimeError(f"AI provider returned HTTP {r.status_code}") from he
     data = r.json()
     return data["choices"][0]["message"]["content"].strip()
+
 
 def ai_endpoint(default_days: int | None = None):
     def decorator(fn):
@@ -174,7 +180,7 @@ def ai_endpoint(default_days: int | None = None):
 
             if not prompt:
                 return jsonify({"error": "Prompt is required"}), 400
-            
+
             # Check length of NEW prompt only
             if len(prompt) > MAX_PROMPT_LEN:
                 return jsonify({"error": f'Prompt too long (max {MAX_PROMPT_LEN} chars)'}), 413
@@ -201,15 +207,15 @@ def ai_endpoint(default_days: int | None = None):
 
                 if fn.__name__ == "api_itinerary":
                     system_prompt = SYSTEM_INSTR_ITINERARY
-                    # Itinerary usually doesn't use history in this specific implementation, 
+                    # Itinerary usually doesn't use history in this specific implementation,
                     # but if we wanted to, we could. For now, keep it simple.
                     reply = call_openrouter(prompt, max_tokens=dynamic_max, system_prompt=system_prompt)
                 else:
                     system_prompt = SYSTEM_INSTR_CHAT
                     # Construct full message history
                     # 1. System prompt
-                    messages = [{ "role": "system", "content": system_prompt.strip() }]
-                    
+                    messages = [{"role": "system", "content": system_prompt.strip()}]
+
                     # 2. History (limit to last 10 to be safe, though frontend should also limit)
                     # Validate history items
                     valid_history = []
@@ -217,12 +223,12 @@ def ai_endpoint(default_days: int | None = None):
                         if isinstance(h, dict) and h.get("role") in ALLOWED_ROLES and "content" in h:
                             content = str(h["content"])[:MAX_PROMPT_LEN]
                             valid_history.append({"role": h["role"], "content": content})
-                    
+
                     messages.extend(valid_history[-10:])
-                    
+
                     # 3. Current user prompt
-                    messages.append({ "role": "user", "content": prompt })
-                    
+                    messages.append({"role": "user", "content": prompt})
+
                     reply = call_openrouter(messages=messages, max_tokens=dynamic_max)
                 if not reply:
                     raise RuntimeError("Empty response from AI")
@@ -244,11 +250,14 @@ def ai_endpoint(default_days: int | None = None):
     return decorator
 
 # Routes
+
+
 @ai_routes.route("/api/ask", methods=["POST"])
 @limiter.limit("5 per minute")
 @ai_endpoint(default_days=None)
 def api_ask():
     pass
+
 
 @ai_routes.route("/api/itinerary", methods=["POST"])
 @limiter.limit("4 per minute")

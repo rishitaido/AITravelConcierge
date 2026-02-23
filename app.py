@@ -3,7 +3,7 @@ from ai_routes import ai_routes
 from flask_swagger_ui import get_swaggerui_blueprint
 import os
 from prometheus_client import Counter, Histogram, generate_latest
-import time 
+import time
 from limiter_config import limiter
 import logging
 import sys
@@ -24,6 +24,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             log_record['method'] = request.method
             log_record['remote_addr'] = request.remote_addr
 
+
 # Set up JSON logging to stdout
 logHandler = logging.StreamHandler(sys.stdout)
 formatter = CustomJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
@@ -40,7 +41,6 @@ werkzeug_logger.setLevel(logging.INFO)
 werkzeug_logger.addHandler(logHandler)
 
 
-
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(32).hex())
 
@@ -49,13 +49,16 @@ app.register_blueprint(ai_routes)
 
 
 # 1) Define your metrics
-REQUEST_COUNT   = Counter('request_count', 'Total HTTP requests', ['method', 'endpoint'])
+REQUEST_COUNT = Counter('request_count', 'Total HTTP requests', ['method', 'endpoint'])
 REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
 
 # 2) Hook into the request lifecycle
+
+
 @app.before_request
 def before_request():
     request.start_time = time.time()
+
 
 @app.after_request
 def after_request(response):
@@ -63,7 +66,7 @@ def after_request(response):
     start = getattr(request, "start_time", time.time())
     latency = time.time() - start
     REQUEST_LATENCY.labels(request.path).observe(latency)
-    
+
     # Log request with structured data
     logger.info(
         "Request completed",
@@ -75,7 +78,7 @@ def after_request(response):
             "remote_addr": request.remote_addr
         }
     )
-    
+
     # Security headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
@@ -92,19 +95,24 @@ def after_request(response):
         "frame-ancestors 'none'"
     )
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    
+
     return response
 
 # 3) Expose the /metrics endpoint
+
+
 @app.route('/metrics')
 def metrics():
     return generate_latest(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 # 4) Health and readiness probes for Kubernetes
+
+
 @app.route('/healthz')
 def healthz():
     """Liveness probe - returns 200 if the app is running"""
     return jsonify({"status": "healthy"}), 200
+
 
 @app.route('/readyz')
 def readyz():
@@ -114,42 +122,48 @@ def readyz():
     return jsonify({"status": "ready"}), 200
 
 
-
 SWAGGER_URL = '/docs'
-API_URL     = '/openapi.yaml'
+API_URL = '/openapi.yaml'
 
 swaggerui_bp = get_swaggerui_blueprint(
     SWAGGER_URL,
     API_URL,
-    config={ 'app_name': "My Personalised AI Travel Concierge" }
+    config={'app_name': "My Personalised AI Travel Concierge"}
 )
 app.register_blueprint(swaggerui_bp, url_prefix=SWAGGER_URL)
 
 # Serve the spec file itself
+
+
 @app.route('/openapi.yaml')
 def openapi_spec():
     return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'openapi.yaml')
+
 
 @app.route("/")
 def index():
     return render_template("TravelHome.html", page_title='My Personalised AI Travel Concierge')
 
+
 @app.route("/model")
 def model():
     return render_template("TravelModel.html")
+
 
 @app.route("/itinerary")
 def itinerary():
     return render_template("itinerary.html")
 
+
 @app.route("/globe")
 def globe():
     return render_template("globe.html", maptiler_key=os.getenv("MAPTILER_KEY"))
 
+
 @app.route("/destinations")
-def destinations(): 
+def destinations():
     return render_template("destinations.html")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")
-    
