@@ -1,3 +1,24 @@
+# =============================================================
+# docker-compose.yml — Local development stack
+# =============================================================
+#
+# Starts the app + full observability (metrics, dashboards, logs).
+#
+# USAGE:
+#   docker compose up -d        # start everything
+#   docker compose logs -f      # stream all logs
+#   docker compose down         # stop everything
+#
+# SERVICES:
+#   python-app  → your Flask app             (port 8080)
+#   prometheus  → scrapes /metrics           (port 9090)
+#   grafana     → dashboards for prometheus  (port 3000)
+#   loki        → log storage backend        (port 3100)
+#   promtail    → ships logs to loki         (no exposed port)
+#
+# All services talk to each other over the "appnet" network.
+# =============================================================
+
 networks:
   appnet:
     driver: bridge
@@ -8,28 +29,29 @@ volumes:
 
 
 services:
+
+  # ---- Your Flask app ----
   python-app:
     container_name: python-app
     build:
-      context: .
-      # you can uncomment this if you want to pass args:
-      # args:
-      #   - PYTHONUNBUFFERED=1
+      context: . # uses the Dockerfile in this directory
     init: true
     restart: unless-stopped
     env_file:
-      - .env
+      - .env # loads OPENROUTER_API_KEY, etc.
     ports:
-      - "8080:8080" # Platform standard port
+      - "8080:8080"
     networks:
       - appnet
-    # Ensure app logs to stdout/stderr for Docker logging
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "10m" # rotate logs at 10MB
+        max-file: "3" # keep 3 rotated files
 
+  # ---- Prometheus (metrics) ----
+  # Scrapes the app's /metrics endpoint every 15s.
+  # Config: config/prometheus.yml
   prometheus:
     image: prom/prometheus:latest
     platform: linux/amd64
@@ -42,13 +64,16 @@ services:
     networks:
       - appnet
 
+  # ---- Grafana (dashboards) ----
+  # Visualizes metrics from Prometheus and logs from Loki.
+  # Login: admin / <GRAFANA_PASSWORD from .env>
   grafana:
     image: grafana/grafana:latest
     platform: linux/amd64
     container_name: grafana
     restart: unless-stopped
     env_file:
-      - .env # so you can set GRAFANA_PASSWORD in .env
+      - .env
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     ports:
@@ -56,6 +81,9 @@ services:
     networks:
       - appnet
 
+  # ---- Loki (log storage) ----
+  # Receives logs from Promtail and stores them.
+  # Config: config/loki.yaml
   loki:
     image: grafana/loki:2.8.2
     platform: linux/amd64
@@ -70,6 +98,9 @@ services:
     networks:
       - appnet
 
+  # ---- Promtail (log shipper) ----
+  # Tails log files and pushes them to Loki.
+  # Config: config/promtail.yaml
   promtail:
     image: grafana/promtail:2.8.2
     platform: linux/amd64

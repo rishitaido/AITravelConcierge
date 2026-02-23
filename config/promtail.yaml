@@ -1,3 +1,7 @@
+# promtail.yaml — Promtail log shipper configuration
+# Used by: docker-compose.yml → promtail service
+# Promtail tails log files on the host and pushes them to Loki.
+
 server:
   http_listen_port: 9080
   grpc_listen_port: 0       # disable gRPC; HTTP is enough for Loki push

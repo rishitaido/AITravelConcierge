@@ -1,3 +1,7 @@
+# prometheus.yml — Prometheus scrape configuration
+# Used by: docker-compose.yml → prometheus service
+# Tells Prometheus to scrape the app's /metrics endpoint every 15 seconds.
+
 global:
   scrape_interval: 15s
 

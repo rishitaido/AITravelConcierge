@@ -1,92 +1,58 @@
-# 1. Version control
+# .dockerignore — Files excluded from the Docker build context
+# These files won't be sent to the Docker daemon, keeping builds fast.
+
+# Version control
 .git/
 .gitignore
-.hg/
-.svn/
 
-# 2. Python artifacts
+# Python
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
 .coverage
 .cache/
+.venv/
 
-# 3. Node.js artifacts (if any)
-node_modules/
-npm-debug.log
-yarn-debug.log
-
-# 4. Go artifacts (not detected, but for completeness)
-/vendor/
-*.test
-.go-cache/
-
-# 5. Java artifacts (not detected, but for completeness)
-target/
-*.class
-.gradle/
-
-# 6. IDE/editor files
+# IDE
 .idea/
 .vscode/
 *.swp
-*.swo
 
-# 7. Build and output directories
+# Build artifacts
 build/
 dist/
 out/
-tmp/
-temp/
 
-# 8. Test and debug files
-test/
-tests/
-debug/
-*.log
-
-# 9. Environment and secrets
+# Environment and secrets
 .env*
-*.env
 *.pem
 *.key
 *.crt
-config.local.*
-*.local.yml
-.local/
 
-# 10. Documentation and markdown
+# Docs (not needed at runtime)
 /docs/
 *.md
 README*
 
-# 11. Docker and Compose files
+# Docker files (no need to copy Dockerfile into the image)
 Dockerfile*
 docker-compose*
 
-# 12. MacOS and OS-specific files
+# OS files
 .DS_Store
 
-# 13. Project-specific: database, cache, scratch, and data artifacts
+# Project-specific: database, cache, scratch
 cache.db
 scratch/
 data/*.csv
 data/queries.active
 data/wal/
 
-# 14. Project-specific: static assets not needed in build
+# Project-specific: .DS_Store in subdirectories
 static/.DS_Store
 static/assets/.DS_Store
-static/assets/3d/.DS_Store
-static/assets/3d/airplanes/.DS_Store
-static/assets/images/.DS_Store
 
-# 15. Project-specific: virtual environments
-.venv/
-
-# 16. Miscellaneous
+# Misc
 *.tmp
-
-# 17. Exclude empty directories (optional, Docker ignores empty dirs by default)
-# (No explicit pattern needed)
+*.log

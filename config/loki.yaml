@@ -1,3 +1,8 @@
+# loki.yaml — Loki log storage configuration
+# Used by: docker-compose.yml → loki service
+# Loki receives logs from Promtail and stores them locally.
+# Grafana queries Loki to display logs in dashboards.
+
 auth_enabled: false
 
 server:
